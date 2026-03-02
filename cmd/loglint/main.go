@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/kweall/loglint/analyzer"
-	"golang.org/x/tools/go/analysis/singlechecker"
+	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {
-	singlechecker.Main(analyzer.Analyzer)
+	unitchecker.Main(analyzer.Analyzer)
 }

@@ -26,10 +26,7 @@ jobs:
       - name: Build loglint binary for Linux
         run: |
           mkdir -p bin
-          GOOS=linux GOARCH=amd64 go build -o bin/loglint ./analyzer
-
-      - name: Check loglint binary
-        run: file bin/loglint
+          GOOS=linux GOARCH=amd64 go build -o bin/loglint ./cmd/loglint
 
       - name: Make loglint executable
         run: chmod +x bin/loglint
