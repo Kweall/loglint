@@ -23,8 +23,8 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      - name: Build loglint binary
-        run: go build -o bin/loglint ./analyzer
+      - name: Build loglint binary for Linux
+        run: GOOS=linux GOARCH=amd64 go build -o bin/loglint ./analyzer
 
       - name: Make loglint executable
         run: chmod +x bin/loglint
