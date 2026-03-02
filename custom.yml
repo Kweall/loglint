@@ -1,0 +1,8 @@
+# custom.yml
+analyzers:
+  - name: loglint
+    path: /Users/kweall/golang/loglint
+    # path: github.com/kweall/loglint@latest
+    description: "Linter for log messages"
+    settings:
+      config: "loglint.yaml"

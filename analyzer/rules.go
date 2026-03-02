@@ -49,12 +49,33 @@ func checkEnglish(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	}
 }
 
+func isFMethod(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	name := sel.Sel.Name
+
+	switch name {
+	case "Infof", "Errorf", "Warnf", "Debugf":
+		return true
+	}
+	return false
+}
+
 func checkSpecialChars(pass *analysis.Pass, call *ast.CallExpr, msg string, lit *ast.BasicLit) {
 	if msg == "" {
 		return
 	}
 
-	if !allowed.MatchString(msg[1:]) {
+	textToCheck := msg
+
+	if isFMethod(call) {
+		re := regexp.MustCompile(`%[^ ]*`)
+		textToCheck = re.ReplaceAllString(msg, "")
+	}
+
+	if !allowed.MatchString(textToCheck[1:]) {
 
 		var cleaned strings.Builder
 		cleaned.WriteByte(msg[0])

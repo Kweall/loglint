@@ -72,5 +72,12 @@ func isLoggerCall(call *ast.CallExpr) bool {
 		return true
 	}
 
+	switch method {
+	case "Infow", "Errorw", "Warnw", "Debugw":
+		return true
+	case "Infof", "Errorf", "Warnf", "Debugf":
+		return true
+	}
+
 	return false
 }

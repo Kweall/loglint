@@ -1,7 +1,7 @@
 rules:
   lowercase: true
   ascii: true
-  special_chars: false
+  special_chars: true
   sensitive: true
 
 sensitive_keys:
