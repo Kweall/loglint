@@ -1,0 +1,12 @@
+rules:
+  lowercase: true
+  ascii: true
+  special_chars: false
+  sensitive: true
+
+sensitive_keys:
+  - password
+  - token
+  - api_key
+  - my_custom_secret
+  - apiKey

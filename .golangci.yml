@@ -1,0 +1,6 @@
+linters-settings:
+  loglint:
+    config: "C:/golang/loglint/loglint.yaml"
+linters:
+  enable:
+    - loglint
