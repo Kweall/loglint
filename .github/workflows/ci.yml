@@ -25,18 +25,14 @@ jobs:
       - name: Build loglint binary
         run: go build -o bin/loglint ./analyzer
 
-      - name: Run tests
-        run: go test ./analyzer -v
-
       - name: Make loglint executable
         run: chmod +x bin/loglint
+
+      - name: Run tests
+        run: go test ./analyzer -v
 
       - name: Run analyzer via go vet
         run: go vet -vettool=bin/loglint ./...
 
-      - name: Run SuggestedFixes (dry-run)
-        run: |
-          go test ./analyzer -run TestSuggestedFixes -v
-
-      - name: Lint config (optional)
+      - name: Lint config
         run: cat loglint.yaml
