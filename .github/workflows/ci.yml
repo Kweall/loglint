@@ -28,6 +28,9 @@ jobs:
       - name: Run tests
         run: go test ./analyzer -v
 
+      - name: Make loglint executable
+        run: chmod +x bin/loglint
+
       - name: Run analyzer via go vet
         run: go vet -vettool=bin/loglint ./...
 
