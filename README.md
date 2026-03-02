@@ -139,32 +139,41 @@ sensitive_keys:
 
 ## Интеграция с `golangci-lint`
 
-1. Установить golangci-lint на MacOS:
+1. Установить и клонировать golangci-lint на MacOS:
 
 ```bash
 brew install golangci-lint
 ```
 
-2. Пример `.golangci.yml` для использования LogLint:
+2. В пути pkg/golinters добавить папку loglint с линтером loglint.go:
 
-```yaml
-linters-settings:
-  govet:
-    check-shadowing: true
+3. Переместить пакет analyzer в папку loglint
 
-linters:
-  enable:
-    - govet
-    - loglint
-
-run:
-  tests: true
+4. В builder_linter.go, в return []*linter.Config добавить линтер:
+```bash
+linter.NewConfig(loglint.New()).
+    WithLoadForGoAnalysis(),
 ```
 
-3. Запуск:
+5. В директории golangci-lint запустить make build и проверить, появился ли линтер с помощью команды:
+```bash
+./golangci-lint linters
+```
+
+6. В корневой папке своего проекта example добавить .golangci.yml:
 
 ```bash
-golangci-lint run
+version: "2"
+linters:
+    default: none
+    enable:
+        - loglint
+```
+
+7. Запуск
+
+```bash
+Path/To/golangci-lint run ./example
 ```
 
 На Windows рекомендуется использовать `go vet -vettool` напрямую, на Linux/Mac — можно интегрировать в golangci-lint через плагин.
