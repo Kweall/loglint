@@ -11,33 +11,32 @@ import (
 
 var allowed = regexp.MustCompile(`^[a-z0-9 ]+$`)
 
-var sensitiveKeys = []string{
-	"password",
-	"passwd",
-	"pwd",
-	"token",
-	"api_key",
-	"apikey",
-	"secret",
-	"private_key",
-	"auth",
-}
-
-func checkRules(pass *analysis.Pass, call *ast.CallExpr, msg string) {
-	checkEnglish(pass, call, msg)
-	checkLowercase(pass, call, msg)
-	checkSpecialChars(pass, call, msg)
-	checkSensitive(pass, call)
-}
-
-func checkLowercase(pass *analysis.Pass, call *ast.CallExpr, msg string) {
+func checkLowercase(pass *analysis.Pass, call *ast.CallExpr, msg string, lit *ast.BasicLit) {
 	if msg == "" {
 		return
 	}
 
 	r := []rune(msg)[0]
-	if !unicode.IsLower(r) {
-		pass.Reportf(call.Pos(), "log message must start with lowercase letter")
+	if unicode.IsUpper(r) {
+		fixed := strings.ToLower(string(r)) + msg[1:]
+
+		pass.Report(analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: "log message must start with lowercase letter",
+			SuggestedFixes: []analysis.SuggestedFix{
+				{
+					Message: "make first letter lowercase",
+					TextEdits: []analysis.TextEdit{
+						{
+							Pos:     lit.Pos(),
+							End:     lit.End(),
+							NewText: []byte(`"` + fixed + `"`),
+						},
+					},
+				},
+			},
+		})
 	}
 }
 
@@ -50,17 +49,64 @@ func checkEnglish(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	}
 }
 
-func checkSpecialChars(pass *analysis.Pass, call *ast.CallExpr, msg string) {
+func isFMethod(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	name := sel.Sel.Name
+
+	switch name {
+	case "Infof", "Errorf", "Warnf", "Debugf":
+		return true
+	}
+	return false
+}
+
+func checkSpecialChars(pass *analysis.Pass, call *ast.CallExpr, msg string, lit *ast.BasicLit) {
 	if msg == "" {
 		return
 	}
 
-	if !allowed.MatchString(msg[1:]) {
-		pass.Reportf(call.Pos(), "log message must contain only english lowercase letters, digits and spaces")
+	textToCheck := msg
+
+	if isFMethod(call) {
+		re := regexp.MustCompile(`%[^ ]*`)
+		textToCheck = re.ReplaceAllString(msg, "")
+	}
+
+	if !allowed.MatchString(textToCheck[1:]) {
+
+		var cleaned strings.Builder
+		cleaned.WriteByte(msg[0])
+
+		for _, r := range msg[1:] {
+			if unicode.IsLower(r) || unicode.IsDigit(r) || r == ' ' {
+				cleaned.WriteRune(r)
+			}
+		}
+
+		pass.Report(analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: "log message must contain only english lowercase letters, digits and spaces",
+			SuggestedFixes: []analysis.SuggestedFix{
+				{
+					Message: "remove special characters",
+					TextEdits: []analysis.TextEdit{
+						{
+							Pos:     lit.Pos(),
+							End:     lit.End(),
+							NewText: []byte(`"` + cleaned.String() + `"`),
+						},
+					},
+				},
+			},
+		})
 	}
 }
 
-func checkSensitive(pass *analysis.Pass, call *ast.CallExpr) {
+func checkSensitive(pass *analysis.Pass, call *ast.CallExpr, cfg *Config) {
 	if len(call.Args) == 0 {
 		return
 	}
@@ -68,7 +114,7 @@ func checkSensitive(pass *analysis.Pass, call *ast.CallExpr) {
 	switch first := call.Args[0].(type) {
 
 	case *ast.BinaryExpr:
-		if containsSensitiveInBinary(first) {
+		if containsSensitiveInBinary(first, cfg) {
 			pass.Reportf(call.Pos(), "log message may contain sensitive data")
 			return
 		}
@@ -88,7 +134,7 @@ func checkSensitive(pass *analysis.Pass, call *ast.CallExpr) {
 
 			key := strings.ToLower(strings.Trim(keyLit.Value, `"`))
 
-			if isSensitiveKey(key) {
+			if isSensitiveKey(key, cfg) {
 				pass.Reportf(call.Pos(), "logging sensitive field '%s' is not allowed", key)
 				return
 			}
@@ -96,26 +142,29 @@ func checkSensitive(pass *analysis.Pass, call *ast.CallExpr) {
 	}
 }
 
-func containsSensitiveInBinary(expr ast.Expr) bool {
+func containsSensitiveInBinary(expr ast.Expr, cfg *Config) bool {
 	switch e := expr.(type) {
 
 	case *ast.BinaryExpr:
-		return containsSensitiveInBinary(e.X) || containsSensitiveInBinary(e.Y)
+		return containsSensitiveInBinary(e.X, cfg) ||
+			containsSensitiveInBinary(e.Y, cfg)
 
 	case *ast.BasicLit:
 		val := strings.ToLower(strings.Trim(e.Value, `"`))
-		return isSensitiveKey(val)
+		return isSensitiveKey(val, cfg)
 
 	case *ast.Ident:
 		name := strings.ToLower(e.Name)
-		return isSensitiveKey(name)
+		return isSensitiveKey(name, cfg)
 	}
 
 	return false
 }
 
-func isSensitiveKey(key string) bool {
-	for _, s := range sensitiveKeys {
+func isSensitiveKey(key string, cfg *Config) bool {
+	key = strings.ToLower(key)
+
+	for _, s := range cfg.SensitiveKeys {
 		if strings.Contains(key, s) {
 			return true
 		}
